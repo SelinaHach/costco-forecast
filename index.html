@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Costco (COST) — FP&A Driver-Based Forecast</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.8.0/Recharts.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend, ComposedChart, Area, ReferenceLine, Cell } = Recharts;
+
+const NAVY="#1e3a5f",BLUE="#2563eb",LIGHT_BLUE="#93c5fd",RED="#dc2626",GREEN="#16a34a",GREY="#9ca3af",TEAL="#155e75",GOLD="#d97706";
+
+const plData=[
+{year:"FY23",ns:237.7,mf:4.58,tr:242.3,ni:6.29,eps:14.16,oi:8.11,ebitda:10.60,ocf:11.07,capex:4.32,fcf:6.75,type:"A"},
+{year:"FY24",ns:249.6,mf:4.83,tr:254.5,ni:7.37,eps:16.56,oi:9.29,ebitda:11.52,ocf:11.34,capex:4.71,fcf:6.63,type:"A"},
+{year:"FY25",ns:269.9,mf:5.32,tr:275.2,ni:8.10,eps:18.21,oi:10.38,ebitda:12.81,ocf:13.34,capex:5.50,fcf:7.84,type:"A"},
+{year:"FY26E",ns:291.5,mf:5.70,tr:297.2,ni:8.77,eps:19.71,oi:11.29,ebitda:13.89,ocf:13.37,capex:6.25,fcf:7.12,type:"E"},
+{year:"FY27E",ns:311.9,mf:6.04,tr:317.9,ni:9.37,eps:21.06,oi:12.12,ebitda:14.90,ocf:14.09,capex:6.50,fcf:7.59,type:"E"},
+];
+
+const marginData=[
+{year:"FY23",mm:10.57,sga:9.08,opMargin:3.35,netMargin:2.60},
+{year:"FY24",mm:10.92,sga:9.14,opMargin:3.65,netMargin:2.90},
+{year:"FY25",mm:11.12,sga:9.25,opMargin:3.77,netMargin:2.94},
+{year:"FY26E",mm:11.20,sga:9.28,opMargin:3.80,netMargin:2.95},
+{year:"FY27E",mm:11.25,sga:9.30,opMargin:3.81,netMargin:2.95},
+];
+
+const memberData=[
+{year:"FY23",paid:71.0,exec:32.3,nonExec:38.7,renewal:90.4,feesOI:56.4,impliedFee:64.51},
+{year:"FY24",paid:76.2,exec:35.4,nonExec:40.8,renewal:90.5,feesOI:52.0,impliedFee:63.36},
+{year:"FY25",paid:81.0,exec:38.7,nonExec:42.3,renewal:89.8,feesOI:51.3,impliedFee:65.72},
+{year:"FY26E",paid:85.9,exec:41.8,nonExec:44.1,renewal:89.9,feesOI:50.4,impliedFee:66.31},
+{year:"FY27E",paid:90.6,exec:44.5,nonExec:46.1,renewal:90.0,feesOI:49.8,impliedFee:66.63},
+];
+
+const sensData=[
+{driver:"Merch Margin ±50bps",up:1170,down:-1170,pct:12.5},
+{driver:"SG&A % ±50bps",up:1170,down:-1170,pct:12.5},
+{driver:"Membership Fees ±5%",up:226,down:-227,pct:2.4},
+{driver:"Tax Rate ±1%",up:125,down:-125,pct:1.3},
+{driver:"Revenue Growth ±1pp",up:43,down:-43,pct:0.5},
+];
+
+const scenarioData=[
+{scenario:"Bear",eps:19.30,ni:8593,color:RED},
+{scenario:"Base",eps:21.06,ni:9375,color:NAVY},
+{scenario:"Bull",eps:22.71,ni:10110,color:TEAL},
+];
+
+const whData=[
+{year:"FY23",wh:861,netNew:23,rpw:279.8},
+{year:"FY24",wh:890,netNew:29,rpw:285.1},
+{year:"FY25",wh:914,netNew:24,rpw:299.2},
+{year:"FY26E",wh:944,netNew:30,rpw:313.8},
+{year:"FY27E",wh:972,netNew:28,rpw:325.6},
+];
+
+const KPICard=({title,value,sub,alert})=>(
+<div className={`bg-white rounded-lg shadow-sm border-l-4 ${alert?'border-red-500':'border-blue-900'} p-4 flex flex-col justify-between`}>
+<p className="text-xs text-gray-500 uppercase tracking-wide font-medium">{title}</p>
+<p className={`text-2xl font-bold mt-1 ${alert?'text-red-600':'text-blue-900'}`}>{value}</p>
+<p className={`text-xs mt-1 ${alert?'text-red-500':'text-gray-400'}`}>{sub}</p>
+</div>
+);
+
+const SectionTitle=({children})=>(
+<h2 className="text-sm font-bold text-blue-900 uppercase tracking-wider mb-3 border-b-2 border-blue-900 pb-1">{children}</h2>
+);
+
+const CustomTooltip=({active,payload,label})=>{
+if(active&&payload&&payload.length){
+return(<div className="bg-white border border-gray-200 rounded shadow-lg p-2 text-xs">
+<p className="font-bold text-blue-900 mb-1">{label}</p>
+{payload.map((p,i)=>(<p key={i} style={{color:p.color||p.stroke||NAVY}}>
+{p.name}: {typeof p.value==='number'?(Math.abs(p.value)>100?`$${p.value.toLocaleString()}`:p.value.toFixed(2)):p.value}
+</p>))}
+</div>);}return null;};
+
+function App(){
+const[tab,setTab]=useState("overview");
+const tabs=[{id:"overview",label:"Overview"},{id:"drivers",label:"Revenue Drivers"},{id:"sensitivity",label:"Sensitivity"},{id:"forecast",label:"Forecast & Scenarios"}];
+
+return(
+<div className="min-h-screen bg-gray-100 font-sans">
+<div className="bg-blue-900 text-white px-6 py-3 flex items-center justify-between">
+<div className="flex items-center gap-4">
+<h1 className="text-lg font-bold tracking-wide">COSTCO WHOLESALE (COST)</h1>
+<span className="text-blue-300 text-sm">Driver-Based Forecast Model</span>
+</div>
+<div className="text-xs text-blue-300">FY2023A – FY2027E | Source: 10-K FY2025, FactSet</div>
+</div>
+
+<div className="bg-white border-b px-6 flex gap-1">
+{tabs.map(t=>(<button key={t.id} onClick={()=>setTab(t.id)}
+className={`px-4 py-2.5 text-sm font-medium transition-all ${tab===t.id?'text-blue-900 border-b-2 border-blue-900':'text-gray-500 hover:text-gray-700'}`}>{t.label}</button>))}
+</div>
+
+<div className="p-4 max-w-7xl mx-auto">
+
+{tab==="overview"&&(
+<div className="space-y-4">
+<div className="grid grid-cols-6 gap-3">
+<KPICard title="Revenue FY25" value="$275.2B" sub="+8.1% YoY"/>
+<KPICard title="Net Income FY25" value="$8.1B" sub="+9.9% YoY"/>
+<KPICard title="EPS FY25" value="$18.21" sub="+10.0% YoY"/>
+<KPICard title="Warehouses" value="914" sub="+24 net new"/>
+<KPICard title="Paid Members" value="81.0mm" sub="+6.3% YoY"/>
+<KPICard title="Renewal Rate" value="89.8%" sub="-70bps ⚠" alert/>
+</div>
+<div className="grid grid-cols-2 gap-4">
+<div className="bg-white rounded-lg shadow-sm p-4">
+<SectionTitle>Revenue & Net Income ($B)</SectionTitle>
+<ResponsiveContainer width="100%" height={220}>
+<ComposedChart data={plData}>
+<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+<XAxis dataKey="year" tick={{fontSize:11}}/>
+<YAxis yAxisId="left" tick={{fontSize:10}} domain={[0,350]}/>
+<YAxis yAxisId="right" orientation="right" tick={{fontSize:10}} domain={[0,12]}/>
+<Tooltip content={<CustomTooltip/>}/>
+<Legend iconSize={8} wrapperStyle={{fontSize:10}}/>
+<Bar yAxisId="left" dataKey="ns" name="Net Sales" radius={[3,3,0,0]} barSize={32}>
+{plData.map((d,i)=><Cell key={i} fill={d.type==="A"?NAVY:GREY}/>)}</Bar>
+<Line yAxisId="right" type="monotone" dataKey="ni" name="Net Income" stroke={GREEN} strokeWidth={2.5} dot={{r:4,fill:GREEN}}/>
+</ComposedChart></ResponsiveContainer></div>
+<div className="bg-white rounded-lg shadow-sm p-4">
+<SectionTitle>Margin Structure (%)</SectionTitle>
+<ResponsiveContainer width="100%" height={220}>
+<LineChart data={marginData}>
+<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+<XAxis dataKey="year" tick={{fontSize:11}}/>
+<YAxis domain={[8.5,11.8]} tick={{fontSize:10}}/>
+<Tooltip content={<CustomTooltip/>}/>
+<Legend iconSize={8} wrapperStyle={{fontSize:10}}/>
+<Area dataKey="mm" name="Merch Margin" fill={NAVY} fillOpacity={0.05} stroke="none"/>
+<Line type="monotone" dataKey="mm" name="Merch Margin" stroke={GREEN} strokeWidth={2.5} dot={{r:4}}/>
+<Line type="monotone" dataKey="sga" name="SG&A %" stroke={RED} strokeWidth={2.5} dot={{r:4}}/>
+</LineChart></ResponsiveContainer>
+<p className="text-xs text-gray-400 text-center mt-1">Shaded area between lines = operating profit on merchandise</p>
+</div></div>
+<div className="grid grid-cols-2 gap-4">
+<div className="bg-white rounded-lg shadow-sm p-4">
+<SectionTitle>Diluted EPS ($)</SectionTitle>
+<ResponsiveContainer width="100%" height={200}>
+<BarChart data={plData}>
+<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+<XAxis dataKey="year" tick={{fontSize:11}}/>
+<YAxis domain={[0,24]} tick={{fontSize:10}}/>
+<Tooltip content={<CustomTooltip/>}/>
+<Bar dataKey="eps" name="EPS" radius={[3,3,0,0]} barSize={36}>
+{plData.map((d,i)=><Cell key={i} fill={d.type==="A"?NAVY:GREY}/>)}</Bar>
+</BarChart></ResponsiveContainer></div>
+<div className="bg-white rounded-lg shadow-sm p-4">
+<SectionTitle>Free Cash Flow ($B)</SectionTitle>
+<ResponsiveContainer width="100%" height={200}>
+<ComposedChart data={plData}>
+<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+<XAxis dataKey="year" tick={{fontSize:11}}/>
+<YAxis tick={{fontSize:10}} domain={[0,16]}/>
+<Tooltip content={<CustomTooltip/>}/>
+<Legend iconSize={8} wrapperStyle={{fontSize:10}}/>
+<Bar dataKey="ocf" name="Operating CF" fill={LIGHT_BLUE} radius={[3,3,0,0]} barSize={18}/>
+<Bar dataKey="capex" name="CapEx" fill={RED} opacity={0.6} radius={[3,3,0,0]} barSize={18}/>
+<Line type="monotone" dataKey="fcf" name="FCF" stroke={NAVY} strokeWidth={2.5} dot={{r:4,fill:NAVY}}/>
+</ComposedChart></ResponsiveContainer></div></div>
+</div>)}
+
+{tab==="drivers"&&(
+<div className="space-y-4">
+<div className="grid grid-cols-3 gap-3">
+<KPICard title="Warehouses FY25" value="914" sub="CAGR: +3.0% (2yr)"/>
+<KPICard title="Rev/Warehouse" value="$299mm" sub="+5.0% YoY (avg basis)"/>
+<KPICard title="Exec Penetration" value="47.8%" sub="Up from 45.5% in FY23"/>
+</div>
+<div className="grid grid-cols-2 gap-4">
+<div className="bg-white rounded-lg shadow-sm p-4">
+<SectionTitle>Warehouse Count & Revenue per Warehouse</SectionTitle>
+<ResponsiveContainer width="100%" height={240}>
+<ComposedChart data={whData}>
+<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+<XAxis dataKey="year" tick={{fontSize:11}}/>
+<YAxis yAxisId="left" domain={[820,1000]} tick={{fontSize:10}}/>
+<YAxis yAxisId="right" orientation="right" domain={[250,350]} tick={{fontSize:10}}/>
+<Tooltip content={<CustomTooltip/>}/>
+<Legend iconSize={8} wrapperStyle={{fontSize:10}}/>
+<Bar yAxisId="left" dataKey="wh" name="Warehouses" radius={[3,3,0,0]} barSize={30}>
+{whData.map((d,i)=><Cell key={i} fill={i<3?NAVY:GREY}/>)}</Bar>
+<Line yAxisId="right" type="monotone" dataKey="rpw" name="Rev/WH ($mm)" stroke={GOLD} strokeWidth={2.5} dot={{r:4,fill:GOLD}}/>
+</ComposedChart></ResponsiveContainer></div>
+<div className="bg-white rounded-lg shadow-sm p-4">
+<SectionTitle>Membership Mix (mm) & Fees as % of OI</SectionTitle>
+<ResponsiveContainer width="100%" height={240}>
+<ComposedChart data={memberData}>
+<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+<XAxis dataKey="year" tick={{fontSize:11}}/>
+<YAxis yAxisId="left" tick={{fontSize:10}} domain={[0,100]}/>
+<YAxis yAxisId="right" orientation="right" tick={{fontSize:10}} domain={[40,65]}/>
+<Tooltip content={<CustomTooltip/>}/>
+<Legend iconSize={8} wrapperStyle={{fontSize:10}}/>
+<Bar yAxisId="left" dataKey="nonExec" name="Non-Executive" stackId="a" fill={LIGHT_BLUE} barSize={30}/>
+<Bar yAxisId="left" dataKey="exec" name="Executive" stackId="a" fill={NAVY} radius={[3,3,0,0]} barSize={30}/>
+<Line yAxisId="right" type="monotone" dataKey="feesOI" name="Fees/OI %" stroke={GOLD} strokeWidth={2.5} dot={{r:4,fill:GOLD}}/>
+</ComposedChart></ResponsiveContainer></div></div>
+<div className="grid grid-cols-2 gap-4">
+<div className="bg-white rounded-lg shadow-sm p-4">
+<SectionTitle>Worldwide Renewal Rate (%)</SectionTitle>
+<ResponsiveContainer width="100%" height={200}>
+<LineChart data={memberData}>
+<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+<XAxis dataKey="year" tick={{fontSize:11}}/>
+<YAxis domain={[89,91]} tick={{fontSize:10}}/>
+<ReferenceLine y={89.8} stroke={RED} strokeDasharray="5 5" strokeOpacity={0.5}/>
+<Tooltip content={<CustomTooltip/>}/>
+<Line type="monotone" dataKey="renewal" name="Renewal Rate" stroke={NAVY} strokeWidth={2.5} dot={(props)=>{
+const{cx,cy,payload}=props;const color=payload.renewal<90?RED:NAVY;
+return <circle cx={cx} cy={cy} r={5} fill={color} stroke="white" strokeWidth={2}/>;}}/>
+</LineChart></ResponsiveContainer>
+<p className="text-xs text-red-500 text-center mt-1">⚠ FY25 dip driven by digital sign-ups renewing at lower rates</p>
+</div>
+<div className="bg-white rounded-lg shadow-sm p-4">
+<SectionTitle>Implied Fee per Paid Member ($)</SectionTitle>
+<ResponsiveContainer width="100%" height={200}>
+<ComposedChart data={memberData}>
+<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+<XAxis dataKey="year" tick={{fontSize:11}}/>
+<YAxis domain={[60,70]} tick={{fontSize:10}}/>
+<ReferenceLine y={65} stroke={GREY} strokeDasharray="5 5"/>
+<Tooltip content={<CustomTooltip/>}/>
+<Bar dataKey="impliedFee" name="Implied Fee" radius={[3,3,0,0]} barSize={36}>
+{memberData.map((d,i)=><Cell key={i} fill={i===1?RED:i<3?NAVY:GREY}/>)}</Bar>
+</ComposedChart></ResponsiveContainer>
+<p className="text-xs text-gray-400 text-center mt-1">FY24 dip: member growth outpaced deferred fee recognition</p>
+</div></div></div>)}
+
+{tab==="sensitivity"&&(
+<div className="space-y-4">
+<div className="bg-blue-900 text-white rounded-lg p-4 flex items-center justify-between">
+<div><p className="text-xs text-blue-300 uppercase font-semibold tracking-wide">Key Insight</p>
+<p className="text-base font-bold mt-1">Merchandise margin is 27x more impactful than revenue growth on Net Income</p></div>
+<div className="text-right text-sm text-blue-200"><p>Base NI: $9,375mm</p><p className="text-xs">FY2027E</p></div></div>
+<div className="bg-white rounded-lg shadow-sm p-4">
+<SectionTitle>Net Income Sensitivity — What Moves Profit Most?</SectionTitle>
+<ResponsiveContainer width="100%" height={280}>
+<BarChart data={sensData} layout="vertical" margin={{left:160,right:80}}>
+<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false}/>
+<XAxis type="number" domain={[-1400,1400]} tick={{fontSize:10}}/>
+<YAxis type="category" dataKey="driver" tick={{fontSize:11}} width={150}/>
+<Tooltip content={<CustomTooltip/>}/>
+<ReferenceLine x={0} stroke="#333" strokeWidth={2}/>
+<Bar dataKey="up" name="Upside" fill={NAVY} barSize={24} radius={[0,3,3,0]}/>
+<Bar dataKey="down" name="Downside" fill={RED} barSize={24} radius={[3,0,0,3]}/>
+</BarChart></ResponsiveContainer></div>
+<div className="grid grid-cols-3 gap-4">
+<div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-red-500">
+<p className="text-xs text-gray-500 uppercase font-semibold">#1 Highest Impact</p>
+<p className="text-lg font-bold text-blue-900 mt-1">Merch Margin & SG&A</p>
+<p className="text-sm text-gray-600 mt-1">±50bps = ±$1,170mm NI</p>
+<p className="text-xs text-gray-400 mt-2">12.5% of total profit each</p>
+<p className="text-xs text-red-600 mt-2 font-medium">Action: Monitor tariff exposure. Expand Kirkland Signature as margin buffer.</p></div>
+<div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-yellow-500">
+<p className="text-xs text-gray-500 uppercase font-semibold">#2 Moderate Impact</p>
+<p className="text-lg font-bold text-blue-900 mt-1">Membership Fees</p>
+<p className="text-sm text-gray-600 mt-1">±5% = ±$226mm NI</p>
+<p className="text-xs text-gray-400 mt-2">1.9% of revenue but 2.4% NI swing</p>
+<p className="text-xs text-yellow-700 mt-2 font-medium">Action: Improve digital retention. Push Executive upgrades past 50%.</p></div>
+<div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-500">
+<p className="text-xs text-gray-500 uppercase font-semibold">#3 Low Impact</p>
+<p className="text-lg font-bold text-blue-900 mt-1">Revenue Growth</p>
+<p className="text-sm text-gray-600 mt-1">±1pp = only ±$43mm NI</p>
+<p className="text-xs text-gray-400 mt-2">0.5% of profit</p>
+<p className="text-xs text-green-700 mt-2 font-medium">Action: Expand for scale, but never sacrifice margin for top-line.</p></div>
+</div></div>)}
+
+{tab==="forecast"&&(
+<div className="space-y-4">
+<div className="grid grid-cols-4 gap-3">
+<KPICard title="FY2027E Net Sales" value="$311.9B" sub="+7.0% YoY"/>
+<KPICard title="FY2027E Net Income" value="$9.4B" sub="+6.9% YoY"/>
+<KPICard title="FY2027E EPS (Base)" value="$21.06" sub="+6.9% YoY"/>
+<KPICard title="FY2027E FCF" value="$7.6B" sub="CapEx guided $6.0-6.5B"/>
+</div>
+<div className="grid grid-cols-2 gap-4">
+<div className="bg-white rounded-lg shadow-sm p-4">
+<SectionTitle>FY2027E EPS — Bear / Base / Bull</SectionTitle>
+<ResponsiveContainer width="100%" height={240}>
+<BarChart data={scenarioData} margin={{top:20}}>
+<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+<XAxis dataKey="scenario" tick={{fontSize:12,fontWeight:'bold'}}/>
+<YAxis domain={[0,26]} tick={{fontSize:10}}/>
+<Tooltip content={<CustomTooltip/>}/>
+<Bar dataKey="eps" name="EPS" radius={[4,4,0,0]} barSize={50}>
+{scenarioData.map((d,i)=><Cell key={i} fill={d.color}/>)}</Bar>
+</BarChart></ResponsiveContainer>
+<div className="flex justify-center gap-6 mt-2 text-xs text-gray-500">
+<span>Bear: $19.30 (-8.4%)</span><span className="font-bold text-blue-900">Base: $21.06</span><span>Bull: $22.71 (+7.8%)</span></div></div>
+<div className="bg-white rounded-lg shadow-sm p-4">
+<SectionTitle>Scenario Assumptions</SectionTitle>
+<table className="w-full text-sm mt-2">
+<thead><tr className="border-b-2 border-blue-900">
+<th className="text-left py-2 text-blue-900 text-xs uppercase">Driver</th>
+<th className="text-center py-2 text-red-600 text-xs uppercase">Bear</th>
+<th className="text-center py-2 text-blue-900 text-xs uppercase">Base</th>
+<th className="text-center py-2 text-teal-700 text-xs uppercase">Bull</th>
+</tr></thead>
+<tbody className="text-gray-700">
+{[["Net Sales Growth","5.0%","7.0%","10.0%"],["Merch Margin","11.05%","11.25%","11.35%"],["SG&A %","9.35%","9.30%","9.22%"],["Memb Fee Growth","5.0%","6.0%","8.0%"],["Tax Rate","25.5%","25.0%","24.5%"]].map(([l,b,base,bull],i)=>(
+<tr key={i} className="border-b border-gray-100">
+<td className="py-2 text-xs font-medium">{l}</td>
+<td className="py-2 text-center text-xs">{b}</td>
+<td className="py-2 text-center text-xs font-bold">{base}</td>
+<td className="py-2 text-center text-xs">{bull}</td></tr>))}
+<tr className="border-t-2 border-blue-900 font-bold">
+<td className="py-2 text-xs">EPS</td>
+<td className="py-2 text-center text-xs text-red-600">$19.30</td>
+<td className="py-2 text-center text-xs text-blue-900">$21.06</td>
+<td className="py-2 text-center text-xs text-teal-700">$22.71</td></tr>
+</tbody></table></div></div>
+<div className="grid grid-cols-2 gap-4">
+<div className="bg-white rounded-lg shadow-sm p-4">
+<SectionTitle>EBITDA ($B)</SectionTitle>
+<ResponsiveContainer width="100%" height={200}>
+<BarChart data={plData}>
+<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+<XAxis dataKey="year" tick={{fontSize:11}}/>
+<YAxis domain={[0,18]} tick={{fontSize:10}}/>
+<Tooltip content={<CustomTooltip/>}/>
+<Bar dataKey="ebitda" name="EBITDA" radius={[3,3,0,0]} barSize={36}>
+{plData.map((d,i)=><Cell key={i} fill={d.type==="A"?NAVY:GREY}/>)}</Bar>
+</BarChart></ResponsiveContainer></div>
+<div className="bg-white rounded-lg shadow-sm p-4">
+<SectionTitle>Operating & Net Margin (%)</SectionTitle>
+<ResponsiveContainer width="100%" height={200}>
+<LineChart data={marginData}>
+<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+<XAxis dataKey="year" tick={{fontSize:11}}/>
+<YAxis domain={[2,4.5]} tick={{fontSize:10}}/>
+<Tooltip content={<CustomTooltip/>}/>
+<Legend iconSize={8} wrapperStyle={{fontSize:10}}/>
+<Line type="monotone" dataKey="opMargin" name="Op Margin" stroke={NAVY} strokeWidth={2.5} dot={{r:4}}/>
+<Line type="monotone" dataKey="netMargin" name="Net Margin" stroke={BLUE} strokeWidth={2.5} dot={{r:4}}/>
+</LineChart></ResponsiveContainer></div></div>
+<div className="bg-blue-900 rounded-lg p-4 text-white">
+<p className="text-xs text-blue-300 uppercase font-semibold tracking-wide">Bottom Line</p>
+<p className="text-sm mt-2 text-blue-100 leading-relaxed">
+Costco's profit is a margin story, not a revenue story. The ~200bps spread between Merchandise Margin (11.12%) and SG&A (9.25%), applied to $270B+ in revenue, generates $10B+ in operating income. Membership fees — only 1.9% of revenue — contribute ~51% of operating income at near-zero cost. Protect the margin spread. Watch membership quality. Revenue growth follows.</p></div>
+</div>)}
+
+</div>
+<div className="bg-gray-200 text-center py-2 text-xs text-gray-500 mt-4">
+Costco Wholesale (COST) FP&A Forecast Model | Data: 10-K FY2025, FactSet | Built with Excel + Python</div>
+</div>);
+}
+
+ReactDOM.render(<App/>, document.getElementById('root'));
+</script>
+</body>
+</html>
