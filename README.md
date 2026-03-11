@@ -31,13 +31,7 @@ Revenue growth barely matters for profit. Margin is 27x more impactful.
 ## What I Built
 
 - **Excel model** — 6-sheet driver-based forecast, 348 formulas, 0 errors. Actuals from 10-K and FactSet.
-- **Python analysis** — Sensitivity, margin trends, membership breakdown, scenarios. Built from model data.
 
-## How to Use
-
-1. Open `Costco_Forecast.ipynb` in Google Colab
-2. Upload CSV files from `data/` folder
-3. Run all cells
 
 ## Data Sources
 
